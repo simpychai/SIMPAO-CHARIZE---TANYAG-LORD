@@ -1,0 +1,115 @@
+#LIB
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(corrplot)
+
+#LODE
+
+data4 <- read.csv("C:\\Users\\User\\Downloads\\PROMPT FILES\\3_Nutritional_Dietary_data_Group_013 (1).csv", stringsAsFactors = FALSE)
+
+#CLEANNNE
+
+data4_cleaned <- data4 %>%
+  select(-Patient.ID) %>%
+  drop_na()
+
+cat("Columns in the dataset after cleaning:\n")
+print(colnames(data4_cleaned))
+
+#SUMM
+
+cat("Initial Summary Statistics for Numeric Columns:\n")
+numeric_cols <- sapply(data4_cleaned, is.numeric)
+
+numeric_summary_stats <- data4_cleaned %>%
+  select(which(numeric_cols)) %>%
+  summarise_all(list(
+    Min = ~min(., na.rm = TRUE),
+    Max = ~max(., na.rm = TRUE),
+    Mean = ~mean(., na.rm = TRUE),
+    Median = ~median(., na.rm = TRUE),
+    SD = ~sd(., na.rm = TRUE),
+    Count = ~sum(!is.na(.))
+  ))
+
+print(numeric_summary_stats)
+
+#SCAT
+
+ggplot(data4_cleaned, aes(x = Muscle_Mass_kg, y = Body_Fat_percent)) +
+  geom_point(color = "darkred") +
+  geom_smooth(method = "lm", color = "blue", se = FALSE) +
+  labs(title = "Scatter Plot of Muscle Mass vs Body Fat Percentage with Trendline", 
+       x = "Muscle Mass (kg)", 
+       y = "Body Fat Percentage") +
+  theme_minimal()
+
+#HIST
+
+data4_cleaned %>%
+  select(which(numeric_cols)) %>%
+  gather(key = "variable", value = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 30, fill = 'skyblue', color = 'black') +
+  facet_wrap(~variable, scales = "free_x") +
+  theme_minimal() +
+  labs(title = "Histograms of Relevant Numeric Variables", x = "Value", y = "Frequency")
+
+#BOXBOX
+
+data4_cleaned %>%
+  select(which(numeric_cols)) %>%
+  gather(key = "variable", value = "value") %>%
+  ggplot(aes(x = variable, y = value)) +
+  geom_boxplot(fill = 'lightblue', color = 'black') +
+  theme_minimal() +
+  labs(title = "Boxplots of Relevant Numeric Variables", x = "Variable", y = "Value")
+
+#BMI CAT
+
+data4_cleaned$BMI_Group <- cut(data4_cleaned$BMI,
+                                  breaks = c(0, 18.5, 24.9, 29.9, 100), 
+                                  labels = c("Underweight", "Normal", "Overweight", "Obese"),
+                                  right = FALSE)
+
+#BAR
+
+ggplot(data4_cleaned, aes(x = factor(Physical_Activity_Hours_Week), fill = BMI_Group)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Physical Activity Hours by BMI Group", x = "Physical Activity Hours per Week", y = "Count") +
+  scale_fill_manual(values = c("lightgreen", "lightblue", "lightcoral", "lightyellow")) +
+  theme_minimal() +
+  theme(legend.title = element_blank()) +
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(0.8), vjust = -0.5, color = "black")
+
+# REGRESS
+
+mlr_model_new <- lm(Body_Fat_percent ~ Muscle_Mass_kg + Physical_Activity_Hours_Week + 
+                      Daily_Caloric_Intake_kcal + Protein_intake_g + Fat_intake_g + 
+                      Carbohydrate_intake_g + Vitamin_C_mg + Iron_mg + Water_intake_ml, 
+                    data = data4_cleaned)
+
+#SUMM
+
+cat("Multiple Linear Regression Model Summary:\n")
+summary(mlr_model_new)
+
+par(mfrow = c(2, 2))
+plot(mlr_model_new)
+par(mfrow = c(1, 1))
+
+data4_cleaned$predicted_Body_Fat_percent <- predict(mlr_model_new, data4_cleaned)
+
+#PLOT
+
+ggplot(data4_cleaned, aes(x = predicted_Body_Fat_percent, y = Body_Fat_percent)) +
+  geom_point(color = "darkred") +
+  geom_abline(slope = 1, intercept = 0, color = "blue", linetype = "dashed") +
+  labs(title = "Predicted vs Actual Body Fat Percentage", x = "Predicted Body Fat Percentage", y = "Actual Body Fat Percentage") +
+  theme_minimal()
+
+cat("Coefficients for Each Variable in the Model:\n")
+print(coef(mlr_model_new))
+
