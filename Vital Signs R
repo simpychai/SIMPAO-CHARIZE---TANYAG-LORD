@@ -1,0 +1,113 @@
+#LIB
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(corrplot)
+
+#LODE
+
+data2 <- read.csv("C:\\Users\\User\\Downloads\\PROMPT FILES\\1_Vital_signs_diagnosis_data_Group_013.csv", stringsAsFactors = FALSE)
+
+#CLEAN
+
+data2_cleaned <- data2 %>%
+  select(-Medication) %>%
+  drop_na()
+
+cat("Columns in the dataset after removing Medication:\n")
+print(colnames(data2_cleaned))
+
+cat("Initial Summary Statistics for Numeric Columns:\n")
+numeric2_cols <- sapply(data2_cleaned, is.numeric)
+
+numeric2_summary_stats <- data2_cleaned %>%
+  select(which(numeric2_cols)) %>%
+  summarise_all(list(
+    Min = ~min(., na.rm = TRUE),
+    Max = ~max(., na.rm = TRUE),
+    Mean = ~mean(., na.rm = TRUE),
+    Median = ~median(., na.rm = TRUE),
+    SD = ~sd(., na.rm = TRUE),
+    Count = ~sum(!is.na(.))
+  ))
+
+print(numeric2_summary_stats)
+
+#SCATTER
+
+ggplot(data2_cleaned, aes(x = Age, y = BMI)) +
+  geom_point(color = "darkred") +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  labs(title = "Scatter Plot of Age vs BMI", 
+       x = "Age", 
+       y = "BMI") +
+  theme_minimal()
+
+#HIST
+
+data2_cleaned %>%
+  select(which(numeric2_cols)) %>%
+  gather(key = "variable", value = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 30, fill = 'skyblue', color = 'black') +
+  facet_wrap(~variable, scales = "free_x") + 
+  theme_minimal() +
+  labs(title = "Histograms of Relevant Numeric Variables", x = "Value", y = "Frequency")
+
+#BOXBOX
+
+data2_cleaned %>%
+  select(which(numeric2_cols)) %>%
+  gather(key = "variable", value = "value") %>%
+  ggplot(aes(x = variable, y = value)) +
+  geom_boxplot(fill = 'lightblue', color = 'black') +
+  theme_minimal() +
+  labs(title = "Boxplots of Relevant Numeric Variables", x = "Variable", y = "Value")
+
+#BAR SMOK
+
+ggplot(data2_cleaned, aes(x = Smoking_Status)) +
+  geom_bar(fill = "lightgreen", color = "black") +
+  theme_minimal() +
+  labs(title = "Bar Plot of Smoking Status", x = "Smoking Status", y = "Count") +
+  geom_text(stat = "count", aes(label = ..count..), vjust = -0.5, color = "black")
+
+#BAR HYPE
+
+ggplot(data2_cleaned, aes(x = Hypertension)) +
+  geom_bar(fill = "lightcoral", color = "black") +
+  theme_minimal() +
+  labs(title = "Bar Plot of Hypertension", x = "Hypertension", y = "Count") +
+  geom_text(stat = "count", aes(label = ..count..), vjust = -0.5, color = "black")
+
+#PCA
+
+pca_result <- prcomp(data2_cleaned[which(numeric2_cols)], scale. = TRUE)
+
+cat("PCA Summary:\n")
+summary(pca_result)
+
+biplot(pca_result, main = "PCA of Relevant Numeric Variables")
+
+explained_variance <- summary(pca_result)$importance[2, ] * 100
+explained_variance_df <- data.frame(Principal_Component = 1:length(explained_variance),
+                                    Explained_Variance = explained_variance)
+
+ggplot(explained_variance_df, aes(x = Principal_Component, y = Explained_Variance)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "Variance Explained by Each Principal Component", 
+       x = "Principal Components", 
+       y = "Explained Variance (%)") +
+  theme_minimal()
+
+#SCATTER PCA
+
+pca_data <- data.frame(pca_result$x)
+ggplot(pca_data, aes(x = PC1, y = PC2)) +
+  geom_point(color = "blue", alpha = 0.5) +
+  labs(title = "Scatter Plot of the First Two Principal Components", 
+       x = "Principal Component 1", 
+       y = "Principal Component 2") +
+  theme_minimal()
+
