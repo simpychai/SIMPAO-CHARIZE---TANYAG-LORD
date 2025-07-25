@@ -1,0 +1,136 @@
+#LIB
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(corrplot)
+
+#LOADD
+
+data3 <- read.csv("C:\\Users\\User\\Downloads\\2_Demographic_Behavioral_data_Group_013 (1).csv", stringsAsFactors = FALSE)
+
+#CLEAN
+
+data3_cleaned <- data3 %>%
+  select(-X, -Region.1, -X.1, -Socioeconomic.1,
+         -X.2, -Education.1, -X.3, -Smoking_status, -X.4,
+         -Drinking_status, -X.5, -Patient_Satisfaction,
+         -X.6, -Health_literacy, -X.7) %>%
+  drop_na()
+
+cat("Columns in the dataset after cleaning:\n")
+print(colnames(data3_cleaned))
+
+#STATS
+
+cat("Initial Summary Statistics for Numeric Columns:\n")
+numeric_cols <- sapply(data3_cleaned, is.numeric)
+
+numeric_summary_stats <- data3_cleaned %>%
+  select(which(numeric_cols)) %>%
+  summarise_all(list(
+    Min = ~min(., na.rm = TRUE),
+    Max = ~max(., na.rm = TRUE),
+    Mean = ~mean(., na.rm = TRUE),
+    Median = ~median(., na.rm = TRUE),
+    SD = ~sd(., na.rm = TRUE),
+    Count = ~sum(!is.na(.))
+  ))
+
+print(numeric_summary_stats)
+
+#CAT BMI
+
+data3_cleaned$BMI_Group <- cut(data3_cleaned$BMI,
+                               breaks = c(0, 18.5, 24.9, 29.9, 100), 
+                               labels = c("Underweight", "Normal", "Overweight", "Obese"),
+                               right = FALSE)
+
+#SCATTER
+
+ggplot(data3_cleaned, aes(x = Age, y = BMI)) +
+  geom_point(color = "darkred") +
+  geom_smooth(method = "lm", color = "blue", se = FALSE) +
+  labs(title = "Scatter Plot of Age vs BMI with Trendline", 
+       x = "Age", 
+       y = "BMI") +
+  theme_minimal()
+
+#HIST
+
+data3_cleaned %>%
+  select(which(numeric_cols)) %>%
+  gather(key = "variable", value = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 30, fill = 'skyblue', color = 'black') +
+  facet_wrap(~variable, scales = "free_x") +
+  theme_minimal() +
+  labs(title = "Histograms of Relevant Numeric Variables", x = "Value", y = "Frequency")
+
+#BOXBOX
+
+data3_cleaned %>%
+  select(which(numeric_cols)) %>%
+  gather(key = "variable", value = "value") %>%
+  ggplot(aes(x = variable, y = value)) +
+  geom_boxplot(fill = 'lightblue', color = 'black') +
+  theme_minimal() +
+  labs(title = "Boxplots of Relevant Numeric Variables", x = "Variable", y = "Value")
+
+#BAR SMOKE
+
+ggplot(data3_cleaned, aes(x = factor(Smoking_Status, labels = c("Non-Smoker", "Occasional", "Chain Smoker")), 
+                          fill = BMI_Group)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Smoking Status by BMI Group", x = "Smoking Status", y = "Count") +
+  scale_fill_manual(values = c("lightgreen", "lightblue", "lightcoral", "lightyellow")) +
+  theme_minimal() +
+  theme(legend.title = element_blank()) +
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(0.8), vjust = -0.5, color = "black")
+
+#BAR DRINK
+
+ggplot(data3_cleaned, aes(x = factor(Drinking_Status, labels = c("Non-Drinker", "Casual Drinker", "Heavy Drinker")), 
+                          fill = BMI_Group)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Drinking Status by BMI Group", x = "Drinking Status", y = "Count") +
+  scale_fill_manual(values = c("lightcoral", "lightyellow", "lightgreen", "lightblue")) +
+  theme_minimal() +
+  theme(legend.title = element_blank()) +
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(0.8), vjust = -0.5, color = "black")
+
+#BAR SOCIO
+
+ggplot(data3_cleaned, aes(x = factor(Socioeconomic, levels = c(1, 2, 3), labels = c("Low Class", "Middle Class", "High Class")), 
+                          fill = BMI_Group)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Socioeconomic Status by BMI Group", x = "Socioeconomic Status", y = "Count") +
+  scale_fill_manual(values = c("lightblue", "lightgreen", "lightcoral", "lightyellow")) +
+  theme_minimal() +
+  theme(legend.title = element_blank()) +
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(0.8), vjust = -0.5, color = "black")
+
+#MLR
+
+mlr_model <- lm(BMI ~ Age + Weight_kg + Height_cm + Physical_Activity_Hours_Week + factor(Socioeconomic), data = data3_cleaned)
+
+cat("Multiple Linear Regression Model Summary:\n")
+summary(mlr_model)
+
+par(mfrow = c(2, 2))
+plot(mlr_model)
+par(mfrow = c(1, 1))
+
+#MODEL
+
+data3_cleaned$predicted_BMI <- predict(mlr_model, data3_cleaned)
+
+ggplot(data3_cleaned, aes(x = predicted_BMI, y = BMI)) +
+  geom_point(color = "darkred") +
+  geom_abline(slope = 1, intercept = 0, color = "blue", linetype = "dashed") + 
+  labs(title = "Predicted vs Actual BMI", x = "Predicted BMI", y = "Actual BMI") +
+  theme_minimal()
+
+cat("Coefficients for Each Variable in the Model:\n")
+print(coef(mlr_model))
+
