@@ -3,10 +3,11 @@ SCHOOL OF HEALTH SCIENCES - BS BIOLOGY
 BI120L CON29
 DATA SCIENCE
 
-Unleashing Health Insights: A Data Adventure!
+Hello, we are students from Mapua University Makati, ready to unleash the world of Data Science.
 
+Health Insights: A Data Adventure!
 
-Embark on a thrilling journey through vital health data, uncovering hidden connections and powerful predictions! This analysis dives into three unique datasets, transforming raw numbers into exciting revelations about well-being.
+Let's embark on a thrilling journey through vital health data, uncovering hidden connections and powerful predictions! This analysis dives into three unique datasets, transforming raw numbers into exciting revelations about well-being.
 What We Explored:
 
 Demographic, Behavioral & Vital Signs Snapshot! We started by exploring a dataset rich with demographic information,   behavioral indicators, and vital signs. This included looking at distributions of age, BMI, and vital signs like heart rate, as well as understanding patterns in smoking status and hypertension levels. We even used Principal Component Analysis (PCA) to distill the most impactful health dimensions.
