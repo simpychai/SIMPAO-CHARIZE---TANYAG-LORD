@@ -1,0 +1,104 @@
+#LIB
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(corrplot)
+
+#LOAD
+
+data <- read.csv("C:\\Users\\User\\Downloads\\PROMPT FILES\\Dataset_odd (2) (1).csv", stringsAsFactors = FALSE)
+
+#CLEAN
+
+data <- data %>%
+  select(-Medication) %>%
+  mutate(
+    Sex = factor(Sex, levels = c(0, 1), labels = c("Female", "Male")),
+    Smoking_Status = factor(Smoking_Status, levels = c(0, 1, 2), labels = c("Nonsmoker", "Occasional", "Chain smoker")),
+    Hypertension = factor(Hypertension, levels = c(0, 1, 2, 3, 4, 5), labels = c("Hypotension", "Normal", "Elevated-1", "Elevated-2", "Elevated-3", "Crisis"))
+  )
+
+data_cleaned <- data %>% drop_na()
+
+outlier_check <- function(x) {
+  Q1 <- quantile(x, 0.25, na.rm = TRUE)
+  Q3 <- quantile(x, 0.75, na.rm = TRUE)
+  IQR <- Q3 - Q1
+  lower_bound <- Q1 - 1.5 * IQR
+  upper_bound <- Q3 + 1.5 * IQR
+  x[x < lower_bound | x > upper_bound] <- NA
+  return(x)
+}
+
+numeric_cols <- c("Age", "BMI", "Systolic_BP", "Diastolic_BP", "Weight_kg")
+
+data_cleaned[numeric_cols] <- lapply(data_cleaned[numeric_cols], outlier_check)
+
+data_cleaned <- data_cleaned %>% drop_na()
+
+cat("Rows after cleaning:", nrow(data_cleaned), "\n")
+
+#CORR
+
+numeric_vars <- data_cleaned %>% select(all_of(numeric_cols))
+cor_matrix <- cor(numeric_vars, use = "complete.obs")
+corrplot(cor_matrix, method = "circle", type = "upper", order = "hclust", tl.cex = 0.8)
+
+summary(data_cleaned)
+
+#HIST
+
+data_cleaned %>%
+  select(all_of(numeric_cols)) %>%
+  gather(key = "variable", value = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 30, fill = 'skyblue', color = 'black') +
+  facet_wrap(~variable, scales = "free_x") +
+  theme_minimal() +
+  labs(title = "Histograms of Relevant Numeric Variables", x = "Value", y = "Frequency")
+
+#BOXBOX
+
+data_cleaned %>%
+  select(all_of(numeric_cols)) %>%
+  gather(key = "variable", value = "value") %>%
+  ggplot(aes(x = variable, y = value)) +
+  geom_boxplot(fill = 'lightblue', color = 'black') +
+  theme_minimal() +
+  labs(title = "Boxplots of Relevant Numeric Variables", x = "Variable", y = "Value")
+
+#BAR SMOKE
+
+ggplot(data_cleaned, aes(x = Smoking_Status)) +
+  geom_bar(fill = "lightgreen", color = "black") +
+  theme_minimal() +
+  labs(title = "Bar Plot of Smoking Status", x = "Smoking Status", y = "Count")
+
+#BAR HYPER
+
+ggplot(data_cleaned, aes(x = Hypertension)) +
+  geom_bar(fill = "lightcoral", color = "black") +
+  theme_minimal() +
+  labs(title = "Bar Plot of Hypertension", x = "Hypertension", y = "Count")
+
+#MULT REG
+
+lm_model <- lm(Systolic_BP ~ Age + BMI + Smoking_Status + Hypertension, data = data_cleaned)
+
+cat("Regression Model Summary:\n")
+print(summary(lm_model))
+
+par(mfrow = c(2, 2))
+plot(lm_model)
+
+#SCATTER
+
+predicted_Systolic_BP <- predict(lm_model, newdata = data_cleaned)
+
+ggplot(data_cleaned, aes(x = predicted_Systolic_BP, y = Systolic_BP)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+  labs(title = "Predicted vs Actual Systolic_BP", x = "Predicted Systolic_BP", y = "Actual Systolic_BP") +
+  theme_minimal()
+
