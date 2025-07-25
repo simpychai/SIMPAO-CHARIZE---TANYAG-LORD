@@ -1,0 +1,107 @@
+#LIB
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(corrplot)
+
+#LODE
+
+data5 <- read.csv("C:\\Users\\User\\Downloads\\PROMPT FILES\\4_Time_series_Mointoring_data_Group_013.csv", stringsAsFactors = FALSE)
+
+#MR CLEANN
+
+data5_cleaned <- data5 %>%
+  select(-Month) %>%
+  drop_na()
+
+cat("Summary of the dataset:\n")
+summary(data5_cleaned)
+
+cat("\nData structure:\n")
+str(data5_cleaned)
+
+#CORR
+
+numeric_cols <- sapply(data5_cleaned, is.numeric)
+
+cor_matrix <- cor(data5_cleaned[, numeric_cols])
+corrplot(cor_matrix, method = "circle", type = "upper", tl.cex = 0.8, title = "Correlation Matrix")
+
+#HIST
+
+data5_cleaned %>%
+  select(which(numeric_cols)) %>%
+  gather(key = "variable", value = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 30, fill = 'skyblue', color = 'black') +
+  facet_wrap(~variable, scales = "free_x") +
+  theme_minimal() +
+  labs(title = "Histograms of Numeric Variables", x = "Value", y = "Frequency")
+
+#BOXBOX
+
+data5_cleaned %>%
+  select(which(numeric_cols)) %>%
+  gather(key = "variable", value = "value") %>%
+  ggplot(aes(x = variable, y = value)) +
+  geom_boxplot(fill = 'lightblue', color = 'black') +
+  theme_minimal() +
+  labs(title = "Boxplots of Numeric Variables", x = "Variable", y = "Value")
+
+#LINEEEE
+
+lm_model_stress <- lm(Patient_1_Stress_Level ~ Patient_1_BMI + Patient_1_avg_steps, data = data5_cleaned)
+
+cat("\nLinear Regression Model Summary (Stress Level Prediction):\n")
+summary(lm_model_stress)
+
+data5_cleaned$predicted_Stress_Level <- predict(lm_model_stress, data5_cleaned)
+
+ggplot(data5_cleaned, aes(x = predicted_Stress_Level, y = Patient_1_Stress_Level)) +
+  geom_point(color = "blue") +
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+  labs(title = "Predicted vs Actual Stress Level for Patient 1", x = "Predicted Stress Level", y = "Actual Stress Level") +
+  theme_minimal()
+
+#STEPS BY BMI
+
+data5_cleaned <- data5_cleaned %>%
+  mutate(BMI_category = case_when(
+    Patient_1_BMI < 18.5 ~ "Underweight",
+    Patient_1_BMI >= 18.5 & Patient_1_BMI < 24.9 ~ "Normal",
+    Patient_1_BMI >= 25 & Patient_1_BMI < 29.9 ~ "Overweight",
+    Patient_1_BMI >= 30 ~ "Obese"
+  ))
+
+#STRESS FOR BMI
+
+bmi_stress_means <- data5_cleaned %>%
+  group_by(BMI_category) %>%
+  summarise(mean_stress = mean(Patient_1_Stress_Level))
+
+ggplot(bmi_stress_means, aes(x = BMI_category, y = mean_stress, fill = BMI_category)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Mean Stress Level by BMI Category", x = "BMI Category", y = "Mean Stress Level") +
+  theme_minimal()
+
+#STEPS
+
+data5_cleaned <- data5_cleaned %>%
+  mutate(Steps_group = case_when(
+    Patient_1_avg_steps < quantile(Patient_1_avg_steps, 0.33) ~ "Low",
+    Patient_1_avg_steps >= quantile(Patient_1_avg_steps, 0.33) & Patient_1_avg_steps < quantile(Patient_1_avg_steps, 0.66) ~ "Medium",
+    Patient_1_avg_steps >= quantile(Patient_1_avg_steps, 0.66) ~ "High"
+  ))
+
+#STRESS FOR STEPS
+
+steps_stress_means <- data5_cleaned %>%
+  group_by(Steps_group) %>%
+  summarise(mean_stress = mean(Patient_1_Stress_Level))
+
+ggplot(steps_stress_means, aes(x = Steps_group, y = mean_stress, fill = Steps_group)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Mean Stress Level by Steps Group", x = "Steps Group", y = "Mean Stress Level") +
+  theme_minimal()
+
