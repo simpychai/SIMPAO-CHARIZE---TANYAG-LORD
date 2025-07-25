@@ -3,7 +3,7 @@ SCHOOL OF HEALTH SCIENCES - BS BIOLOGY
 BI120L CON29
 DATA SCIENCE
 
-Hello, we are students from Mapua University Makati, ready to unleash the world of Data Science.
+Hello, we are students from Mapua University Makati, ready to unleash the world of Data Science using R Language. 
 
 Health Insights: A Data Adventure!
 
